@@ -2,6 +2,7 @@ import streamlit as st
 from streamlit_gsheets import GSheetsConnection
 import pandas as pd
 from datetime import datetime
+import traceback
 
 st.set_page_config(page_title="Oficina SV - Controladoria", layout="wide")
 
@@ -32,7 +33,8 @@ try:
     conexao_ok = True
 
 except Exception as e:
-    st.error(f"Erro de Conexão: Verifique se o link da planilha nos 'Secrets' está correto. Detalhe: {e}")
+    st.error(f"Erro de Conexão. Detalhe: {repr(e)}")
+    st.code(traceback.format_exc())
     lista_frotas   = ["Erro ao carregar"]
     proximo_numero = 0
     df_mov         = pd.DataFrame()
@@ -45,8 +47,7 @@ with st.sidebar:
     st.header("🕒 Últimos Serviços")
     if not df_mov.empty:
         cols_disp = [c for c in ['OS_NUM','FROTA','MECANICO','STATUS'] if c in df_mov.columns]
-        historico = df_mov[cols_disp].tail(5).iloc[::-1]
-        st.table(historico)
+        st.table(df_mov[cols_disp].tail(5).iloc[::-1])
     else:
         st.info("Nenhum lançamento registrado na aba 'movimentacao'.")
 
@@ -71,7 +72,7 @@ with st.form("form_oficina", clear_on_submit=True):
         tipo_manut = st.selectbox("Tipo de Manutenção", ["CORRETIVA", "PREVENTIVA", "INTERNA", "PREDITIVA"])
         status_os  = st.radio("Status do Equipamento", ["FINALIZADO", "PENDENTE (EM ABERTO)"], horizontal=True)
 
-    descricao = st.text_area("Descrição detalhada do serviço e peças aplicadas")
+    descricao = st.text_area("Descrição detalhada do serviço e peças aplicadas", max_chars=300)
 
     enviar = st.form_submit_button("✅ SALVAR NO SISTEMA")
 
@@ -99,7 +100,8 @@ with st.form("form_oficina", clear_on_submit=True):
                 st.success(f"✅ O.S. #{proximo_numero:04d} registrada com sucesso!")
                 st.rerun()
             except Exception as error:
-                st.error(f"❌ Erro ao salvar: {error}")
+                st.error(f"❌ Erro ao salvar: {repr(error)}")
+                st.code(traceback.format_exc())
 
 st.divider()
 st.caption("Sistema Oficina SV | Controladoria Bataguassu-MS | Dados salvos diretamente no Google Sheets.")
