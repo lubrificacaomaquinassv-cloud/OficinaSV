@@ -20,8 +20,8 @@ st.divider()
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 
-    df_frota = conn.read(worksheet="frota", usecols=[0, 1, 2, 3], ttl=120)
-    df_mov   = conn.read(worksheet="movimentacao", ttl=5)
+    df_frota = conn.read(worksheet="FROTA", usecols=[0, 1, 2, 3], ttl=120)
+    df_mov   = conn.read(worksheet="MOVIMENTACAO", ttl=5)
 
     lista_frotas = df_frota['FROTA'].dropna().unique().tolist() if not df_frota.empty else ["Cadastre a frota na planilha"]
 
@@ -49,7 +49,7 @@ with st.sidebar:
         cols_disp = [c for c in ['OS_NUM','FROTA','MECANICO','STATUS'] if c in df_mov.columns]
         st.table(df_mov[cols_disp].tail(5).iloc[::-1])
     else:
-        st.info("Nenhum lançamento registrado na aba 'movimentacao'.")
+        st.info("Nenhum lançamento registrado na aba 'MOVIMENTACAO'.")
 
 # ── Formulário ─────────────────────────────────────────────────
 with st.form("form_oficina", clear_on_submit=True):
@@ -96,7 +96,7 @@ with st.form("form_oficina", clear_on_submit=True):
 
             try:
                 df_atualizado = pd.concat([df_mov, novo_registro], ignore_index=True)
-                conn.update(worksheet="movimentacao", data=df_atualizado)
+                conn.update(worksheet="MOVIMENTACAO", data=df_atualizado)
                 st.success(f"✅ O.S. #{proximo_numero:04d} registrada com sucesso!")
                 st.rerun()
             except Exception as error:
