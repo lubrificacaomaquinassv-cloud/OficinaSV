@@ -20,10 +20,15 @@ st.divider()
 try:
     conn = st.connection("gsheets", type=GSheetsConnection)
 
-    df_frota = conn.read(worksheet="FROTA", usecols=[0, 1, 2, 3], ttl=120)
+    df_frota = conn.read(worksheet="FROTA", ttl=120)
     df_mov   = conn.read(worksheet="MOVIMENTACAO", ttl=5)
 
-    lista_frotas = df_frota['FROTA'].dropna().unique().tolist() if not df_frota.empty else ["Cadastre a frota na planilha"]
+    if not df_frota.empty:
+        lista_frotas = (
+            df_frota['FROTA'].astype(str) + " - " + df_frota['DESCRICAO'].astype(str)
+        ).dropna().unique().tolist()
+    else:
+        lista_frotas = ["Cadastre a frota na planilha"]
 
     if not df_mov.empty and 'OS_NUM' in df_mov.columns:
         proximo_numero = int(pd.to_numeric(df_mov['OS_NUM'], errors='coerce').max()) + 1
@@ -44,7 +49,7 @@ except Exception as e:
 with st.sidebar:
     st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=140)
     st.divider()
-    st.header("🕒 Últimos Serviços")
+    st.header("🕒 Últimas OS")
     if not df_mov.empty:
         cols_disp = [c for c in ['OS_NUM','FROTA','MECANICO','STATUS'] if c in df_mov.columns]
         st.table(df_mov[cols_disp].tail(5).iloc[::-1])
@@ -63,16 +68,41 @@ with st.form("form_oficina", clear_on_submit=True):
         frota_sel = st.selectbox("Selecione o Equipamento", options=lista_frotas)
         mecanico  = st.text_input("Nome do Mecânico")
         sistema   = st.selectbox("Sistema Afetado", [
-            "Motor", "Hidráulico", "Elétrico", "Pneus",
-            "Transmissão", "Suspensão", "Implemento", "Outros"
+            "Motor",
+            "Hidráulico",
+            "Elétrico",
+            "Pneus",
+            "Transmissão",
+            "Suspensão",
+            "Implemento",
+            "Outros"
         ])
 
     with c2:
         horimetro  = st.number_input("Horímetro ou KM Atual", min_value=0.0, step=0.1, format="%.1f")
-        tipo_manut = st.selectbox("Tipo de Manutenção", ["CORRETIVA", "PREVENTIVA", "INTERNA", "PREDITIVA"])
-        status_os  = st.radio("Status do Equipamento", ["FINALIZADO", "PENDENTE (EM ABERTO)"], horizontal=True)
+        tipo_manut = st.selectbox("Tipo de Manutenção", [
+            "CORRETIVA",
+            "PREVENTIVA",
+            "INTERNA",
+            "PREDITIVA"
+        ])
+        status_os = st.radio(
+            "Status do Equipamento",
+            ["FINALIZADO", "PENDENTE (EM ABERTO)"],
+            horizontal=True
+        )
 
-    descricao = st.text_area("Descrição detalhada do serviço e peças aplicadas", max_chars=300)
+    descricao = st.text_area(
+        "Descrição detalhada do serviço e peças aplicadas",
+        max_chars=300,
+        placeholder="Máx. 300 caracteres"
+    )
+
+    observacao = st.text_area(
+        "Observação",
+        max_chars=200,
+        placeholder="Máx. 200 caracteres"
+    )
 
     enviar = st.form_submit_button("✅ SALVAR NO SISTEMA")
 
@@ -83,15 +113,16 @@ with st.form("form_oficina", clear_on_submit=True):
             st.error("❌ Sem conexão com a planilha. Verifique os Secrets.")
         else:
             novo_registro = pd.DataFrame([{
-                "OS_NUM":    proximo_numero,
-                "DATA":      datetime.now().strftime("%d/%m/%Y %H:%M"),
-                "FROTA":     frota_sel,
-                "MECANICO":  mecanico.upper(),
-                "HORIMETRO": horimetro,
-                "SISTEMA":   sistema,
-                "TIPO":      tipo_manut,
-                "STATUS":    status_os,
-                "DESCRICAO": descricao
+                "OS_NUM":      proximo_numero,
+                "DATA":        datetime.now().strftime("%d/%m/%Y %H:%M"),
+                "FROTA":       frota_sel,
+                "MECANICO":    mecanico.upper(),
+                "HORIMETRO":   horimetro,
+                "SISTEMA":     sistema,
+                "TIPO":        tipo_manut,
+                "STATUS":      status_os,
+                "DESCRICAO":   descricao,
+                "OBSERVACAO":  observacao
             }])
 
             try:
