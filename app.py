@@ -1,5 +1,5 @@
 import streamlit as st
-from streamlit_gsheets import GSheetsConnection
+from st_gsheets_connection import GSheetsConnection  # ✅ CORRIGIDO
 import pandas as pd
 from datetime import datetime
 import traceback
@@ -23,15 +23,22 @@ try:
     df_frota = conn.read(worksheet="FROTA", ttl=120)
     df_mov   = conn.read(worksheet="MOVIMENTACAO", ttl=5)
 
-    if not df_frota.empty:
+    # 🔒 GARANTE COLUNAS
+    for col in ["OS_NUM", "STATUS"]:
+        if col not in df_mov.columns:
+            df_mov[col] = None
+
+    if not df_frota.empty and "FROTA" in df_frota.columns and "DESCRICAO" in df_frota.columns:
         lista_frotas = (
             df_frota['FROTA'].astype(str) + " - " + df_frota['DESCRICAO'].astype(str)
         ).dropna().unique().tolist()
     else:
         lista_frotas = ["Cadastre a frota na planilha"]
 
-    if not df_mov.empty and 'OS_NUM' in df_mov.columns:
-        proximo_numero = int(pd.to_numeric(df_mov['OS_NUM'], errors='coerce').max()) + 1
+    # 🔥 CORREÇÃO AQUI (evita erro se vazio)
+    if not df_mov.empty:
+        os_max = pd.to_numeric(df_mov['OS_NUM'], errors='coerce').max()
+        proximo_numero = int(os_max) + 1 if pd.notna(os_max) else 1
     else:
         proximo_numero = 1
 
@@ -50,6 +57,7 @@ with st.sidebar:
     st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=140)
     st.divider()
     st.header("🕒 Últimas OS")
+
     if not df_mov.empty:
         cols_disp = [c for c in ['OS_NUM','FROTA','MECANICO','STATUS'] if c in df_mov.columns]
         st.table(df_mov[cols_disp].tail(5).iloc[::-1])
@@ -58,6 +66,7 @@ with st.sidebar:
 
 # ── Formulário ─────────────────────────────────────────────────
 with st.form("form_oficina", clear_on_submit=True):
+
     col_titulo, col_os = st.columns([3, 1])
     with col_os:
         st.metric("O.S. ATUAL", f"#{proximo_numero:04d}")
@@ -68,23 +77,14 @@ with st.form("form_oficina", clear_on_submit=True):
         frota_sel = st.selectbox("Selecione o Equipamento", options=lista_frotas)
         mecanico  = st.text_input("Nome do Mecânico")
         sistema   = st.selectbox("Sistema Afetado", [
-            "Motor",
-            "Hidráulico",
-            "Elétrico",
-            "Pneus",
-            "Transmissão",
-            "Suspensão",
-            "Implemento",
-            "Outros"
+            "Motor","Hidráulico","Elétrico","Pneus",
+            "Transmissão","Suspensão","Implemento","Outros"
         ])
 
     with c2:
         horimetro  = st.number_input("Horímetro ou KM Atual", min_value=0.0, step=0.1, format="%.1f")
         tipo_manut = st.selectbox("Tipo de Manutenção", [
-            "CORRETIVA",
-            "PREVENTIVA",
-            "INTERNA",
-            "PREDITIVA"
+            "CORRETIVA","PREVENTIVA","INTERNA","PREDITIVA"
         ])
         status_os = st.radio(
             "Status do Equipamento",
@@ -92,17 +92,8 @@ with st.form("form_oficina", clear_on_submit=True):
             horizontal=True
         )
 
-    descricao = st.text_area(
-        "Descrição detalhada do serviço e peças aplicadas",
-        max_chars=300,
-        placeholder="Máx. 300 caracteres"
-    )
-
-    observacao = st.text_area(
-        "Observação",
-        max_chars=200,
-        placeholder="Máx. 200 caracteres"
-    )
+    descricao = st.text_area("Descrição detalhada do serviço", max_chars=300)
+    observacao = st.text_area("Observação", max_chars=200)
 
     enviar = st.form_submit_button("✅ SALVAR NO SISTEMA")
 
@@ -110,7 +101,7 @@ with st.form("form_oficina", clear_on_submit=True):
         if not mecanico.strip() or not descricao.strip():
             st.warning("⚠️ Nome do mecânico e Descrição são obrigatórios.")
         elif not conexao_ok:
-            st.error("❌ Sem conexão com a planilha. Verifique os Secrets.")
+            st.error("❌ Sem conexão com a planilha.")
         else:
             novo_registro = pd.DataFrame([{
                 "OS_NUM":      proximo_numero,
@@ -120,7 +111,7 @@ with st.form("form_oficina", clear_on_submit=True):
                 "HORIMETRO":   horimetro,
                 "SISTEMA":     sistema,
                 "TIPO":        tipo_manut,
-                "STATUS":      status_os,
+                "STATUS":      status_os.strip(),  # 🔒 evita erro futuro
                 "DESCRICAO":   descricao,
                 "OBSERVACAO":  observacao
             }])
@@ -135,4 +126,4 @@ with st.form("form_oficina", clear_on_submit=True):
                 st.code(traceback.format_exc())
 
 st.divider()
-st.caption("Sistema Oficina SV | Controladoria Bataguassu-MS | Dados salvos diretamente no Google Sheets.")
+st.caption("Sistema Oficina SV | Controladoria Bataguassu-MS | Google Sheets")
