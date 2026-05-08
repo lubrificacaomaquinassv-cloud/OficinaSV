@@ -11,18 +11,29 @@ st.set_page_config(page_title="Oficina SV - Controladoria", layout="wide")
 st.markdown("""
     <style>
         [data-testid="stSidebar"] { min-width: 280px; max-width: 280px; }
-        .block-container { padding-top: 2rem; padding-bottom: 1rem; }
+        .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
         .stTable { font-size: 12px !important; }
         [data-testid="stMetricValue"] { font-size: 24px; }
+        /* Ajuste fino para alinhar verticalmente a logo com o texto */
+        .header-container {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 10px;
+        }
     </style>
 """, unsafe_allow_html=True)
 
-# ── Logo + Título ──────────────────────────────────────────────
-col_logo, col_titulo = st.columns([1, 5])
-with col_logo:
-    st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=100)
-with col_titulo:
-    st.title("🚜 Gestão de Oficina - SV")
+# ── Cabeçalho Otimizado (Logo e Título na mesma linha) ──────────
+# Usando colunas para garantir o alinhamento perfeito
+col_header_1, col_header_2 = st.columns([1, 6])
+
+with col_header_1:
+    st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=90)
+
+with col_header_2:
+    # Ajustando o título para ficar alinhado com a logo
+    st.markdown("<h1 style='margin:0; padding:0;'>🚜 Gestão de Ordem de Serviço Interna - SV</h1>", unsafe_allow_html=True)
     st.caption("Controladoria Bataguassu-MS")
 
 st.divider()
@@ -33,12 +44,10 @@ try:
     df_frota = conn.read(worksheet="FROTA", ttl=120)
     df_mov   = conn.read(worksheet="MOVIMENTACAO", ttl=5)
     
-    # Garantir colunas novas e tipos corretos
     for col in ["HORA_ENTRADA", "HORA_SAIDA", "FOTO_URL"]:
         if col not in df_mov.columns:
             df_mov[col] = ""
     
-    # Converter OS_NUM para numérico para evitar erros de comparação
     if not df_mov.empty:
         df_mov['OS_NUM'] = pd.to_numeric(df_mov['OS_NUM'], errors='coerce')
 
@@ -61,7 +70,6 @@ except Exception as e:
 # ── Lógica de Edição / Fechamento de OS ────────────────────────
 os_para_editar = None
 if conexao_ok and not df_mov.empty:
-    # Filtrar pendentes e garantir que OS_NUM seja tratado como inteiro na exibição
     df_pendentes = df_mov[df_mov['STATUS'].str.contains("PENDENTE", na=False, case=False)].copy()
     
     with st.sidebar:
@@ -70,7 +78,6 @@ if conexao_ok and not df_mov.empty:
         st.subheader("🛠️ Finalizar OS")
         
         if not df_pendentes.empty:
-            # Criar lista de opções tratando o número da OS para não aparecer .0
             opcoes_pendentes = ["--- Selecione ---"]
             for _, row in df_pendentes.iterrows():
                 num_limpo = int(float(row['OS_NUM']))
@@ -81,7 +88,6 @@ if conexao_ok and not df_mov.empty:
             
             if selecao != "--- Selecione ---":
                 try:
-                    # Extrair o número tratando como float primeiro para evitar o erro do ponto decimal
                     os_num_sel = int(float(selecao.split(" - ")[0]))
                     os_para_editar = df_mov[df_mov['OS_NUM'] == os_num_sel].iloc[0]
                     st.warning(f"Editando OS #{os_num_sel:04d}")
@@ -192,9 +198,7 @@ with st.form("form_oficina", clear_on_submit=not modo_edicao):
                     novo_registro = pd.DataFrame([dados_os])
                     df_final = pd.concat([df_mov, novo_registro], ignore_index=True)
                 
-                # Converter OS_NUM para inteiro antes de salvar para manter a planilha limpa
                 df_final['OS_NUM'] = df_final['OS_NUM'].astype(int)
-                
                 conn.update(worksheet="MOVIMENTACAO", data=df_final)
                 st.success(f"✅ O.S. #{proximo_numero:04d} salva!")
                 st.rerun()
@@ -208,7 +212,6 @@ with st.sidebar:
     if not df_mov.empty:
         cols_disp = ['OS_NUM','FROTA','STATUS']
         df_view = df_mov[cols_disp].tail(8).iloc[::-1].copy()
-        # Limpar o .0 da visualização na tabela também
         df_view['OS_NUM'] = df_view['OS_NUM'].apply(lambda x: int(float(x)) if pd.notnull(x) else x)
         df_view['FROTA'] = df_view['FROTA'].str[:10] + "..."
         st.table(df_view)
