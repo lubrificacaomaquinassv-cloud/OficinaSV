@@ -14,27 +14,41 @@ st.markdown("""
         .block-container { padding-top: 1.5rem; padding-bottom: 1rem; }
         .stTable { font-size: 12px !important; }
         [data-testid="stMetricValue"] { font-size: 24px; }
-        /* Ajuste fino para alinhar verticalmente a logo com o texto */
-        .header-container {
+        
+        /* Estilo para o container do cabeçalho */
+        .header-wrapper {
             display: flex;
             align-items: center;
-            gap: 20px;
-            margin-bottom: 10px;
+            gap: 25px;
+            margin-bottom: 15px;
+        }
+        .header-text h1 {
+            margin: 0 !important;
+            padding: 0 !important;
+            line-height: 1.2 !important;
+            font-size: 2.2rem !important;
+        }
+        .header-text p {
+            margin: 0 !important;
+            padding: 0 !important;
+            color: #666;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# ── Cabeçalho Otimizado (Logo e Título na mesma linha) ──────────
-# Usando colunas para garantir o alinhamento perfeito
-col_header_1, col_header_2 = st.columns([1, 6])
-
-with col_header_1:
-    st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=90)
-
-with col_header_2:
-    # Ajustando o título para ficar alinhado com a logo
-    st.markdown("<h1 style='margin:0; padding:0;'>🚜 Gestão de Ordem de Serviço Interna - SV</h1>", unsafe_allow_html=True)
-    st.caption("Controladoria Bataguassu-MS")
+# ── Cabeçalho Corrigido (Sem cortes) ───────────────────────────
+# Usando HTML/CSS direto para controle total do alinhamento e evitar cortes das colunas do Streamlit
+st.markdown(f"""
+    <div class="header-wrapper">
+        <div class="header-logo">
+            <img src="https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg" width="100">
+        </div>
+        <div class="header-text">
+            <h1>🚜 Gestão de Ordem de Serviço Interna - SV</h1>
+            <p>Controladoria Bataguassu-MS</p>
+        </div>
+    </div>
+""", unsafe_allow_html=True)
 
 st.divider()
 
