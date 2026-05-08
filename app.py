@@ -29,7 +29,7 @@ col_logo, col_titulo = st.columns([1.2, 5.8])
 
 with col_logo:
     # Usando o componente nativo que é o mais seguro contra cortes
-    st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=130)
+    st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=100)
 
 with col_titulo:
     # Título e legenda alinhados nativamente
