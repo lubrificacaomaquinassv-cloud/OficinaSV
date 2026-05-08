@@ -7,27 +7,13 @@ import traceback
 # Configuração da página
 st.set_page_config(page_title="Oficina SV - Controladoria", layout="wide")
 
-# ── Estilização CSS para Barra Lateral mais estreita e visual profissional ──
+# ── Estilização CSS ──
 st.markdown("""
     <style>
-        /* Ajustar largura da barra lateral */
-        [data-testid="stSidebar"] {
-            min-width: 280px;
-            max-width: 280px;
-        }
-        /* Reduzir padding do topo para ganhar espaço */
-        .block-container {
-            padding-top: 2rem;
-            padding-bottom: 1rem;
-        }
-        /* Estilo para a tabela lateral ficar mais compacta */
-        .stTable {
-            font-size: 12px !important;
-        }
-        /* Ajustar métricas */
-        [data-testid="stMetricValue"] {
-            font-size: 24px;
-        }
+        [data-testid="stSidebar"] { min-width: 280px; max-width: 280px; }
+        .block-container { padding-top: 2rem; padding-bottom: 1rem; }
+        .stTable { font-size: 12px !important; }
+        [data-testid="stMetricValue"] { font-size: 24px; }
     </style>
 """, unsafe_allow_html=True)
 
@@ -36,7 +22,7 @@ col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=100)
 with col_titulo:
-    st.title("🚜 Gestão de Ordem de Serviços Interno - SV")
+    st.title("🚜 Gestão de Oficina - SV")
     st.caption("Controladoria Bataguassu-MS")
 
 st.divider()
@@ -47,10 +33,14 @@ try:
     df_frota = conn.read(worksheet="FROTA", ttl=120)
     df_mov   = conn.read(worksheet="MOVIMENTACAO", ttl=5)
     
-    # Garantir colunas novas
+    # Garantir colunas novas e tipos corretos
     for col in ["HORA_ENTRADA", "HORA_SAIDA", "FOTO_URL"]:
         if col not in df_mov.columns:
             df_mov[col] = ""
+    
+    # Converter OS_NUM para numérico para evitar erros de comparação
+    if not df_mov.empty:
+        df_mov['OS_NUM'] = pd.to_numeric(df_mov['OS_NUM'], errors='coerce')
 
     if not df_frota.empty:
         lista_frotas = (
@@ -71,7 +61,8 @@ except Exception as e:
 # ── Lógica de Edição / Fechamento de OS ────────────────────────
 os_para_editar = None
 if conexao_ok and not df_mov.empty:
-    df_pendentes = df_mov[df_mov['STATUS'].str.contains("PENDENTE", na=False, case=False)]
+    # Filtrar pendentes e garantir que OS_NUM seja tratado como inteiro na exibição
+    df_pendentes = df_mov[df_mov['STATUS'].str.contains("PENDENTE", na=False, case=False)].copy()
     
     with st.sidebar:
         st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=120)
@@ -79,24 +70,31 @@ if conexao_ok and not df_mov.empty:
         st.subheader("🛠️ Finalizar OS")
         
         if not df_pendentes.empty:
-            opcoes_pendentes = ["--- Selecione ---"] + (
-                df_pendentes['OS_NUM'].astype(str) + " - " + df_pendentes['FROTA'].astype(str).str[:15] + "..."
-            ).tolist()
+            # Criar lista de opções tratando o número da OS para não aparecer .0
+            opcoes_pendentes = ["--- Selecione ---"]
+            for _, row in df_pendentes.iterrows():
+                num_limpo = int(float(row['OS_NUM']))
+                frota_resumo = str(row['FROTA'])[:15]
+                opcoes_pendentes.append(f"{num_limpo} - {frota_resumo}...")
             
             selecao = st.selectbox("OS Pendentes:", opcoes_pendentes)
             
             if selecao != "--- Selecione ---":
-                os_num_sel = int(selecao.split(" - ")[0])
-                os_para_editar = df_mov[df_mov['OS_NUM'] == os_num_sel].iloc[0]
-                st.warning(f"Editando OS #{os_num_sel:04d}")
-                if st.button("✖ Cancelar Edição"):
-                    st.rerun()
+                try:
+                    # Extrair o número tratando como float primeiro para evitar o erro do ponto decimal
+                    os_num_sel = int(float(selecao.split(" - ")[0]))
+                    os_para_editar = df_mov[df_mov['OS_NUM'] == os_num_sel].iloc[0]
+                    st.warning(f"Editando OS #{os_num_sel:04d}")
+                    if st.button("✖ Cancelar Edição"):
+                        st.rerun()
+                except Exception as e:
+                    st.error(f"Erro ao carregar OS: {e}")
         else:
             st.info("Sem OS pendentes.")
 
 # Definir número da OS
 if os_para_editar is not None:
-    proximo_numero = int(os_para_editar['OS_NUM'])
+    proximo_numero = int(float(os_para_editar['OS_NUM']))
     modo_edicao = True
 else:
     if not df_mov.empty and 'OS_NUM' in df_mov.columns:
@@ -130,7 +128,6 @@ with st.form("form_oficina", clear_on_submit=not modo_edicao):
             except: idx_sistema = 0
         sistema = st.selectbox("Sistema Afetado", sistemas, index=idx_sistema)
         
-        # Horas lado a lado para economizar espaço
         ch1, ch2 = st.columns(2)
         with ch1:
             h_entrada = st.text_input("Hora Entrada", value=os_para_editar['HORA_ENTRADA'] if modo_edicao else "", placeholder="08:00")
@@ -195,6 +192,9 @@ with st.form("form_oficina", clear_on_submit=not modo_edicao):
                     novo_registro = pd.DataFrame([dados_os])
                     df_final = pd.concat([df_mov, novo_registro], ignore_index=True)
                 
+                # Converter OS_NUM para inteiro antes de salvar para manter a planilha limpa
+                df_final['OS_NUM'] = df_final['OS_NUM'].astype(int)
+                
                 conn.update(worksheet="MOVIMENTACAO", data=df_final)
                 st.success(f"✅ O.S. #{proximo_numero:04d} salva!")
                 st.rerun()
@@ -206,10 +206,10 @@ with st.sidebar:
     st.divider()
     st.subheader("🕒 Últimas OS")
     if not df_mov.empty:
-        # Mostrar apenas colunas essenciais para não poluir
         cols_disp = ['OS_NUM','FROTA','STATUS']
-        # Formatar para exibição compacta
         df_view = df_mov[cols_disp].tail(8).iloc[::-1].copy()
+        # Limpar o .0 da visualização na tabela também
+        df_view['OS_NUM'] = df_view['OS_NUM'].apply(lambda x: int(float(x)) if pd.notnull(x) else x)
         df_view['FROTA'] = df_view['FROTA'].str[:10] + "..."
         st.table(df_view)
     else:
