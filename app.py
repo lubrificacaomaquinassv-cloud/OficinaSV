@@ -15,33 +15,46 @@ st.markdown("""
         .stTable { font-size: 12px !important; }
         [data-testid="stMetricValue"] { font-size: 24px; }
         
-        /* Estilo para o container do cabeçalho */
-        .header-wrapper {
+        /* Container do cabeçalho para evitar cortes */
+        .header-container {
             display: flex;
             align-items: center;
-            gap: 25px;
-            margin-bottom: 15px;
+            gap: 20px;
+            margin-bottom: 20px;
+            width: 100%;
+        }
+        .header-logo img {
+            display: block;
+            height: auto;
+            max-height: 100px; /* Limita a altura para não ficar gigante */
+            width: auto;
+            object-fit: contain;
+        }
+        .header-text {
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
         }
         .header-text h1 {
             margin: 0 !important;
             padding: 0 !important;
-            line-height: 1.2 !important;
             font-size: 2.2rem !important;
+            line-height: 1.1 !important;
         }
         .header-text p {
-            margin: 0 !important;
+            margin: 5px 0 0 0 !important;
             padding: 0 !important;
             color: #666;
+            font-size: 1rem;
         }
     </style>
 """, unsafe_allow_html=True)
 
-# ── Cabeçalho Corrigido (Sem cortes) ───────────────────────────
-# Usando HTML/CSS direto para controle total do alinhamento e evitar cortes das colunas do Streamlit
+# ── Cabeçalho com Logo Protegida ───────────────────────────────
 st.markdown(f"""
-    <div class="header-wrapper">
+    <div class="header-container">
         <div class="header-logo">
-            <img src="https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg" width="100">
+            <img src="https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg">
         </div>
         <div class="header-text">
             <h1>🚜 Gestão de Ordem de Serviço Interna - SV</h1>
