@@ -11,7 +11,7 @@ with col_logo:
     st.image("https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg", width=110)
 with col_titulo:
     st.title("🚜 Gestão de Oficina - SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS")
+    st.caption(🛠️📈"SIGCF — Sistema Integrado de Gestão de Custos de Frota")
 
 st.divider()
 
