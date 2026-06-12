@@ -3,7 +3,8 @@ import pandas as pd
 from datetime import datetime
 from supabase import create_client
 
-st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="🔧")
+st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="🔧",
+                   initial_sidebar_state="collapsed")
 
 LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
 
@@ -60,8 +61,8 @@ col_logo, col_titulo = st.columns([1, 5])
 with col_logo:
     st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
 with col_titulo:
-    st.title("🔧 GESTÃO DE OFICINA — SV")
-    st.caption("SIGCF | CONTROLADORIA - GESTÃO DE DADOS")
+    st.title("🔧 Gestão de Oficina — SV")
+    st.caption("SIGCF | Controladoria Bataguassu-MS")
 
 st.divider()
 
@@ -78,10 +79,17 @@ def carregar_frota():
 
 @st.cache_data(ttl=10)
 def carregar_os():
-    res = supabase.table("ordem_servico").select(
-        "numero_os, id_frota, mecanico, status, created_at"
-    ).order("created_at", desc=True).limit(50).execute()
-    return res.data or []
+    try:
+        res = supabase.table("ordem_servico").select(
+            "numero_os, id_frota, mecanico, operador, sistema, status, created_at"
+        ).order("created_at", desc=True).limit(50).execute()
+        return res.data or []
+    except Exception:
+        # fallback enquanto a coluna "operador" não existir no banco
+        res = supabase.table("ordem_servico").select(
+            "numero_os, id_frota, mecanico, status, created_at"
+        ).order("created_at", desc=True).limit(50).execute()
+        return res.data or []
 
 @st.cache_data(ttl=300)
 def carregar_mecanicos():
@@ -90,9 +98,16 @@ def carregar_mecanicos():
 
 @st.cache_data(ttl=300)
 def carregar_operadores():
-    """Operadores de trator (dim_operador_frota). Retorna [] se a tabela ainda não existir."""
+    """Operadores de trator: dim_colaborador com funcao OPERADOR (salário
+    centralizado na mesma tabela dos mecânicos)."""
     try:
-        res = supabase.table("dim_operador_frota").select("operador, id_frota").eq("ativo", True).order("operador").execute()
+        res = supabase.table("dim_colaborador").select("nome").eq("ativo", True).eq("funcao", "OPERADOR").order("nome").execute()
+        if res.data:
+            return [{"operador": r["nome"]} for r in res.data]
+    except Exception:
+        pass
+    try:
+        res = supabase.table("dim_operador_frota").select("operador").eq("ativo", True).order("operador").execute()
         return res.data or []
     except Exception:
         return []
@@ -114,31 +129,6 @@ if os_data:
     numeros = [int(o['numero_os'].replace('OS-', '')) for o in os_data if o.get('numero_os', '').startswith('OS-')]
     if numeros:
         proximo_numero = max(numeros) + 1
-
-# ── Sidebar ──
-with st.sidebar:
-    st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="130"></div>', unsafe_allow_html=True)
-    st.divider()
-    st.markdown('<div class="sec">🕒 Últimas OS</div>', unsafe_allow_html=True)
-    if os_data:
-        linhas = ""
-        for o in os_data[:5]:
-            status = str(o.get("status", "—")).upper()
-            cls = "st-fin" if "FINAL" in status else "st-pend"
-            linhas += (
-                f"<tr><td>{o.get('numero_os', '—')}</td>"
-                f"<td>{o.get('id_frota', '—')}</td>"
-                f"<td>{o.get('mecanico', '—')}</td>"
-                f"<td class='{cls}'>{status}</td></tr>"
-            )
-        st.markdown(
-            "<table class='os-table'>"
-            "<tr><th>OS</th><th>Frota</th><th>Mecânico</th><th>Status</th></tr>"
-            f"{linhas}</table>",
-            unsafe_allow_html=True,
-        )
-    else:
-        st.info("Nenhuma OS registrada.")
 
 # ── Formulário ──
 with st.form("form_oficina", clear_on_submit=True):
@@ -228,4 +218,41 @@ with st.form("form_oficina", clear_on_submit=True):
                 st.error(f"❌ Erro ao salvar: {e}")
 
 st.divider()
-st.caption("SIGCF | Oficina SV | NUCLEO DE CONTROLADORIA E GESTÃO DE DADOS")
+
+# ── Últimas OS (tabela completa abaixo do formulário) ──
+st.markdown('<div class="sec">🕒 Últimas OS lançadas</div>', unsafe_allow_html=True)
+if os_data:
+    linhas = ""
+    for o in os_data[:10]:
+        status = str(o.get("status", "—")).upper()
+        cls = "st-fin" if "FINAL" in status else "st-pend"
+        dt_fmt = "—"
+        if o.get("created_at"):
+            try:
+                dt_fmt = datetime.fromisoformat(
+                    str(o["created_at"]).replace("Z", "+00:00")
+                ).strftime("%d/%m/%Y %H:%M")
+            except Exception:
+                dt_fmt = str(o["created_at"])[:16]
+        linhas += (
+            f"<tr><td>{o.get('numero_os', '—')}</td>"
+            f"<td>{o.get('id_frota', '—')}</td>"
+            f"<td>{o.get('sistema', '—')}</td>"
+            f"<td>{o.get('mecanico', '—')}</td>"
+            f"<td>{o.get('operador') or '—'}</td>"
+            f"<td class='{cls}'>{status}</td>"
+            f"<td>{dt_fmt}</td></tr>"
+        )
+    st.markdown(
+        "<table class='os-table'>"
+        "<tr><th>OS</th><th>Frota</th><th>Sistema</th><th>Mecânico</th>"
+        "<th>Operador</th><th>Status</th><th>Data/Hora</th></tr>"
+        f"{linhas}</table>",
+        unsafe_allow_html=True,
+    )
+    st.caption("Exibindo as 10 OS mais recentes")
+else:
+    st.info("Nenhuma OS registrada.")
+
+st.divider()
+st.caption("SIGCF | Oficina SV | Controladoria Bataguassu-MS")
