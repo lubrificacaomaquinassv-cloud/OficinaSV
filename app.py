@@ -61,7 +61,7 @@ with col_logo:
     st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
 with col_titulo:
     st.title("🔧 GESTÃO DE OFICINA — SV")
-    st.caption("SIGCF | Controladoria - GESTÃO DE DADOS")
+    st.caption("SIGCF | CONTROLADORIA - GESTÃO DE DADOS")
 
 st.divider()
 
@@ -228,4 +228,4 @@ with st.form("form_oficina", clear_on_submit=True):
                 st.error(f"❌ Erro ao salvar: {e}")
 
 st.divider()
-st.caption("SIGCF | Oficina SV | Controladoria Bataguassu-MS")
+st.caption("SIGCF | Oficina SV | NUCLEO DE CONTROLADORIA E GESTÃO DE DADOS")
