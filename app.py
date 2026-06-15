@@ -1,7 +1,22 @@
+import re
 import streamlit as st
 import pandas as pd
 from datetime import datetime
 from supabase import create_client
+
+
+def parse_hora(txt):
+    """Converte texto HH:MM ou HH:MM:SS em time, ou None se vazio/inválido."""
+    if not txt or not str(txt).strip():
+        return None
+    txt = str(txt).strip().replace("h", ":")
+    m = re.match(r"^(\d{1,2}):(\d{2})(?::(\d{2}))?$", txt)
+    if not m:
+        return None
+    h, mi = int(m.group(1)), int(m.group(2))
+    if h > 23 or mi > 59:
+        return None
+    return datetime.strptime(f"{h:02d}:{mi:02d}", "%H:%M").time()
 
 st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="🔧",
                    initial_sidebar_state="collapsed")
@@ -121,8 +136,6 @@ lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cad
 lista_mecanicos = [m['nome'] for m in mecanicos_data] or ["Cadastre o mecânico"]
 lista_operadores = sorted({str(o['operador']).strip() for o in operadores_data if o.get('operador')})
 
-SEM_OPERADOR = "— SEM OPERADOR —"
-
 # Próximo número OS
 proximo_numero = 1
 if os_data:
@@ -145,25 +158,29 @@ with st.form("form_oficina", clear_on_submit=True):
             "Motor", "Hidráulico", "Elétrico", "Pneus",
             "Transmissão", "Suspensão", "Implemento", "Outros"
         ])
+        operador_sel = st.text_input(
+            "Operador (apontado no equipamento)",
+            placeholder="Digite o nome do operador",
+            help="Usado para calcular a hora do operador parado durante a OS",
+        )
         if lista_operadores:
-            operador_sel = st.selectbox(
-                "Operador (apontado no equipamento)",
-                options=[SEM_OPERADOR] + lista_operadores,
-                help="Usado para calcular a hora do operador parado durante a OS",
-            )
-        else:
-            operador_sel = st.text_input(
-                "Operador (apontado no equipamento)",
-                help="Cadastre os operadores na tabela dim_operador_frota para virar lista",
-            )
+            st.caption(f"Cadastrados: {', '.join(lista_operadores)}")
 
     with c2:
         horimetro = st.number_input("Horímetro ou KM Atual", min_value=0.0, step=0.1, format="%.1f")
         tipo_manut = st.selectbox("Tipo de Manutenção", [
             "CORRETIVA", "PREVENTIVA", "INTERNA", "PREDITIVA"
         ])
-        hora_entrada = st.time_input("Hora Entrada", value=None)
-        hora_saida = st.time_input("Hora Saída", value=None)
+        hora_entrada_txt = st.text_input(
+            "Hora Entrada",
+            placeholder="Ex: 08:30",
+            help="Digite a hora em formato HH:MM",
+        )
+        hora_saida_txt = st.text_input(
+            "Hora Saída",
+            placeholder="Ex: 14:30",
+            help="Digite a hora em formato HH:MM",
+        )
         status_os = st.radio("Status", ["FINALIZADO", "PENDENTE"], horizontal=True)
 
     descricao = st.text_area("Descrição do serviço e peças aplicadas", max_chars=300)
@@ -172,7 +189,13 @@ with st.form("form_oficina", clear_on_submit=True):
     enviar = st.form_submit_button("✅ SALVAR NO SISTEMA")
 
     if enviar:
-        if not descricao.strip():
+        hora_entrada = parse_hora(hora_entrada_txt)
+        hora_saida = parse_hora(hora_saida_txt)
+        if hora_entrada_txt.strip() and not hora_entrada:
+            st.warning("⚠️ Hora de entrada inválida. Use HH:MM (ex: 08:30).")
+        elif hora_saida_txt.strip() and not hora_saida:
+            st.warning("⚠️ Hora de saída inválida. Use HH:MM (ex: 14:30).")
+        elif not descricao.strip():
             st.warning("⚠️ Descrição é obrigatória.")
         else:
             # Calcular tempo trabalhado
@@ -185,9 +208,7 @@ with st.form("form_oficina", clear_on_submit=True):
 
             id_frota = frota_sel.split(" - ")[0].strip()
 
-            operador_final = str(operador_sel or "").strip().upper()
-            if operador_final == SEM_OPERADOR.upper() or not operador_final:
-                operador_final = None
+            operador_final = str(operador_sel or "").strip().upper() or None
 
             novo = {
                 "numero_os": f"OS-{proximo_numero:04d}",
