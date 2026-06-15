@@ -111,30 +111,12 @@ def carregar_mecanicos():
     res = supabase.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
     return res.data or []
 
-@st.cache_data(ttl=300)
-def carregar_operadores():
-    """Operadores de trator: dim_colaborador com funcao OPERADOR (salário
-    centralizado na mesma tabela dos mecânicos)."""
-    try:
-        res = supabase.table("dim_colaborador").select("nome").eq("ativo", True).eq("funcao", "OPERADOR").order("nome").execute()
-        if res.data:
-            return [{"operador": r["nome"]} for r in res.data]
-    except Exception:
-        pass
-    try:
-        res = supabase.table("dim_operador_frota").select("operador").eq("ativo", True).order("operador").execute()
-        return res.data or []
-    except Exception:
-        return []
-
 frota_data = carregar_frota()
 os_data = carregar_os()
 mecanicos_data = carregar_mecanicos()
-operadores_data = carregar_operadores()
 
 lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cadastre a frota"]
 lista_mecanicos = [m['nome'] for m in mecanicos_data] or ["Cadastre o mecânico"]
-lista_operadores = sorted({str(o['operador']).strip() for o in operadores_data if o.get('operador')})
 
 # Próximo número OS
 proximo_numero = 1
@@ -163,8 +145,6 @@ with st.form("form_oficina", clear_on_submit=True):
             placeholder="Digite o nome do operador",
             help="Usado para calcular a hora do operador parado durante a OS",
         )
-        if lista_operadores:
-            st.caption(f"Cadastrados: {', '.join(lista_operadores)}")
 
     with c2:
         horimetro = st.number_input("Horímetro ou KM Atual", min_value=0.0, step=0.1, format="%.1f")
