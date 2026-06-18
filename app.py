@@ -2,7 +2,11 @@ import re
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from supabase import create_client
+from sigcf_auth import exigir_acesso, logo_html
+
+TZ_BR = ZoneInfo("America/Sao_Paulo")
 
 
 def parse_hora(txt):
@@ -18,12 +22,27 @@ def parse_hora(txt):
         return None
     return datetime.strptime(f"{h:02d}:{mi:02d}", "%H:%M").time()
 
+
+def fmt_dt_br(value):
+    """Exibe timestamp UTC do Supabase em horário de Brasília."""
+    if not value:
+        return "—"
+    try:
+        raw = str(value).strip().replace("Z", "+00:00")
+        dt = datetime.fromisoformat(raw)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        return dt.astimezone(TZ_BR).strftime("%d/%m/%Y %H:%M")
+    except Exception:
+        return str(value)[:16]
+
+
 st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="🔧",
                    initial_sidebar_state="collapsed")
 
-LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
+exigir_acesso("Gestão de Oficina — SV")
 
-# ── Identidade visual SV (mesmo padrão do Gestor e do Painel da Frota) ──
+# ── Identidade visual SV (mesmo padrão do Apontamento de Campo) ──
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&display=swap');
@@ -33,21 +52,29 @@ st.markdown("""
 h1,h2,h3,h4,p,span,label{color:#e8edd0;}
 h1{font-family:'Barlow Condensed',sans-serif;letter-spacing:1px;}
 .stCaption,[data-testid="stCaptionContainer"] p{color:#8aab80!important;}
-div[data-testid="stForm"]{background:#111c10;border:1px solid #1e2e1c;border-radius:12px;padding:24px;}
+.logo-frame{background:linear-gradient(145deg,#0a1628,#0d2040);border:2px solid #c9a227;
+ border-radius:12px;padding:5px;display:inline-block;box-shadow:0 4px 18px rgba(0,0,0,.45);}
+.logo-frame img{display:block;border-radius:8px;}
+div[data-testid="stForm"]{background:#0d180c;border:1px solid #1e2e1c;border-radius:12px;padding:24px;}
 div[data-testid="stSelectbox"] label,div[data-testid="stNumberInput"] label,
 div[data-testid="stTimeInput"] label,div[data-testid="stTextArea"] label,
 div[data-testid="stTextInput"] label,div[data-testid="stRadio"] label,
 div[data-testid="stRadio"] p{color:#8aab80!important;font-family:'Barlow Condensed',sans-serif;
  text-transform:uppercase;letter-spacing:1px;font-size:12px!important;}
 div[data-testid="stRadio"] div[role="radiogroup"] p{color:#e8edd0!important;font-size:14px!important;text-transform:none;}
-div[data-baseweb="select"] > div{background:#0d180c!important;border:1px solid #1e2e1c!important;color:#e8edd0!important;}
-div[data-baseweb="select"] div{color:#e8edd0!important;}
-div[data-baseweb="select"] svg{fill:#8aab80;}
-ul[data-testid="stSelectboxVirtualDropdown"],div[data-baseweb="popover"] ul{background:#111c10!important;}
-div[data-baseweb="popover"] li{color:#e8edd0!important;}
-.stNumberInput input,.stTextInput input,.stTextArea textarea,.stTimeInput input{
- background:#0d180c!important;border:1px solid #1e2e1c!important;color:#e8edd0!important;}
-.stNumberInput button{background:#111c10!important;color:#8aab80!important;border:1px solid #1e2e1c!important;}
+.stTextInput input,.stNumberInput input,.stTextArea textarea,.stTimeInput input{
+ background:#dce6d2!important;color:#1a2818!important;
+ border:1px solid #4a6644!important;border-radius:8px!important;}
+.stTextInput input:focus,.stNumberInput input:focus,.stTextArea textarea:focus,.stTimeInput input:focus{
+ border-color:#6fcf60!important;box-shadow:0 0 0 1px #6fcf6044!important;}
+div[data-baseweb="select"] > div{
+ background:#dce6d2!important;border:1px solid #4a6644!important;
+ color:#1a2818!important;border-radius:8px!important;}
+div[data-baseweb="select"] div{color:#1a2818!important;}
+div[data-baseweb="select"] svg{fill:#4a6644!important;}
+ul[data-testid="stSelectboxVirtualDropdown"],div[data-baseweb="popover"] ul{background:#e8edd0!important;}
+div[data-baseweb="popover"] li{color:#1a2818!important;}
+.stNumberInput button{background:#cdd9c4!important;color:#1a2818!important;border:1px solid #4a6644!important;}
 div[data-testid="metric-container"],div[data-testid="stMetric"]{
  background:#0d180c;border:1px solid #4a9e3f;border-radius:10px;padding:12px 18px;}
 div[data-testid="stMetric"] label,div[data-testid="metric-container"] label{color:#8aab80!important;}
@@ -58,7 +85,6 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
  text-transform:uppercase;border-radius:8px;padding:10px 28px;}
 .stButton button:hover,[data-testid="stFormSubmitButton"] button:hover{background:#3d8534!important;}
 .stButton button p,[data-testid="stFormSubmitButton"] button p{color:#ffffff!important;font-weight:700;}
-.logo-box{background:#ffffff;border-radius:10px;padding:8px 12px;display:inline-block;}
 .sec{font-family:'Barlow Condensed',sans-serif;font-size:12px;font-weight:700;
  letter-spacing:2px;text-transform:uppercase;color:#8aab80;
  border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
@@ -72,9 +98,9 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 """, unsafe_allow_html=True)
 
 # ── Logo + Título ──
-col_logo, col_titulo = st.columns([1, 5])
+col_logo, col_titulo = st.columns([1.1, 5.9])
 with col_logo:
-    st.markdown(f'<div class="logo-box"><img src="{LOGO_URL}" width="100"></div>', unsafe_allow_html=True)
+    st.markdown(logo_html(118), unsafe_allow_html=True)
 with col_titulo:
     st.title("🔧 Gestão de Oficina — SV")
     st.caption("SIGCF | Controladoria Bataguassu-MS")
@@ -204,7 +230,6 @@ with st.form("form_oficina", clear_on_submit=True):
                 "status": status_os,
                 "descricao": descricao,
                 "observacao": observacao,
-                "created_at": datetime.now().isoformat()
             }
 
             try:
@@ -227,14 +252,7 @@ if os_data:
     for o in os_data[:10]:
         status = str(o.get("status", "—")).upper()
         cls = "st-fin" if "FINAL" in status else "st-pend"
-        dt_fmt = "—"
-        if o.get("created_at"):
-            try:
-                dt_fmt = datetime.fromisoformat(
-                    str(o["created_at"]).replace("Z", "+00:00")
-                ).strftime("%d/%m/%Y %H:%M")
-            except Exception:
-                dt_fmt = str(o["created_at"])[:16]
+        dt_fmt = fmt_dt_br(o.get("created_at"))
         linhas += (
             f"<tr><td>{o.get('numero_os', '—')}</td>"
             f"<td>{o.get('id_frota', '—')}</td>"
@@ -251,7 +269,7 @@ if os_data:
         f"{linhas}</table>",
         unsafe_allow_html=True,
     )
-    st.caption("Exibindo as 10 OS mais recentes")
+    st.caption("Exibindo as 10 OS mais recentes · horário de Brasília")
 else:
     st.info("Nenhuma OS registrada.")
 
