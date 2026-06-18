@@ -40,7 +40,7 @@ def fmt_dt_br(value):
 st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="🔧",
                    initial_sidebar_state="collapsed")
 
-exigir_acesso("Gestão de Oficina — SV")
+exigir_acesso("ORDEM DE SERVIÇO")
 
 # ── Identidade visual SV (mesmo padrão do Apontamento de Campo) ──
 st.markdown("""
@@ -102,8 +102,8 @@ col_logo, col_titulo = st.columns([1.1, 5.9])
 with col_logo:
     st.markdown(logo_html(118), unsafe_allow_html=True)
 with col_titulo:
-    st.title("🔧 Gestão de Oficina — SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS")
+    st.title("🔧 ORDEM DE SERVIÇO DA OFICINA - SEDE")
+    st.caption("SIGCF | CONTROLADORIA - GESTÃO E ANÁLISE DE DADOS")
 
 st.divider()
 
@@ -274,4 +274,4 @@ else:
     st.info("Nenhuma OS registrada.")
 
 st.divider()
-st.caption("SIGCF | Oficina SV | Controladoria Bataguassu-MS")
+st.caption("SIGCF | OFICINA - SEDE | NÚCLEO DE CONTROLADORIA E GESTÃO DE DADOS")
