@@ -3,8 +3,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
-from supabase import create_client
-from sigcf_auth import exigir_acesso, logo_html
+from sigcf_auth import conectar_supabase, exigir_acesso, logo_html
 
 TZ_BR = ZoneInfo("America/Sao_Paulo")
 
@@ -108,9 +107,7 @@ with col_titulo:
 st.divider()
 
 # ── Conexão Supabase ──
-SUPABASE_URL = st.secrets["SUPABASE_URL"]
-SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+supabase = conectar_supabase()
 
 # ── Carregar dados ──
 @st.cache_data(ttl=60)

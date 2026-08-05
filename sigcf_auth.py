@@ -22,10 +22,36 @@ def logo_html(width: int = 118) -> str:
     return f'<div class="logo-frame"><img src="{src}" width="{width}" alt="Santa Virginia"></div>'
 
 
+def _secret(key: str, default: str = "") -> str:
+    import streamlit as st
+
+    try:
+        return str(st.secrets.get(key, default) or default)
+    except Exception:
+        return default
+
+
+def conectar_supabase():
+    """Cliente Supabase; mensagem clara se Secrets faltarem no Streamlit Cloud."""
+    import streamlit as st
+    from supabase import create_client
+
+    try:
+        url = st.secrets["SUPABASE_URL"]
+        key = st.secrets["SUPABASE_KEY"]
+    except Exception:
+        st.error(
+            "Secrets do Supabase não encontrados. No Streamlit Cloud: "
+            "Settings → Secrets → configure SUPABASE_URL e SUPABASE_KEY, depois Reboot app."
+        )
+        st.stop()
+    return create_client(url, key)
+
+
 def exigir_acesso(titulo: str, subtitulo: str = "Acesso restrito — SIGCF Santa Vergínia"):
     import streamlit as st
 
-    pin_cfg = str(st.secrets.get("APP_PIN", "") or "").strip()
+    pin_cfg = _secret("APP_PIN", "").strip()
     if not pin_cfg:
         return
     if st.session_state.get(SESSION_KEY):
