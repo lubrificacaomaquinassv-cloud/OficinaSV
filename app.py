@@ -134,9 +134,14 @@ def carregar_mecanicos():
     res = supabase.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
     return res.data or []
 
-frota_data = carregar_frota()
-os_data = carregar_os()
-mecanicos_data = carregar_mecanicos()
+try:
+    frota_data = carregar_frota()
+    os_data = carregar_os()
+    mecanicos_data = carregar_mecanicos()
+except Exception as e:
+    st.error(f"Erro ao carregar dados do Supabase: {e}")
+    st.info("Verifique SUPABASE_URL e SUPABASE_KEY em Settings → Secrets no Streamlit Cloud.")
+    st.stop()
 
 lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cadastre a frota"]
 lista_mecanicos = [m['nome'] for m in mecanicos_data] or ["Cadastre o mecânico"]
