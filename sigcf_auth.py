@@ -1,5 +1,4 @@
-"""PIN opcional SIGCF — logo Santa Virginia premium."""
-import base64
+"""PIN opcional SIGCF — logo Santa Virginia."""
 from pathlib import Path
 
 LOGO_URL = "https://i.postimg.cc/Y9X7ddnb/LOGO-BP.jpg"
@@ -8,17 +7,14 @@ SESSION_KEY = "sigcf_auth"
 
 LOGO_FRAME_CSS = (
     ".logo-frame{background:linear-gradient(145deg,#0a1628,#0d2040);border:2px solid #c9a227;"
-    "border-radius:12px;padding:5px;display:inline-block;box-shadow:0 4px 18px rgba(0,0,0,.45);}"
+    "border-radius:12px;padding:5px;display:inline-block;}"
     ".logo-frame img{display:block;border-radius:8px;}"
 )
 
 
 def logo_html(width: int = 118) -> str:
-    if LOGO_FILE.is_file():
-        b64 = base64.b64encode(LOGO_FILE.read_bytes()).decode()
-        src = f"data:image/png;base64,{b64}"
-    else:
-        src = LOGO_URL
+    # URL externa no Cloud — evita base64 pesado no boot
+    src = LOGO_URL
     return f'<div class="logo-frame"><img src="{src}" width="{width}" alt="Santa Virginia"></div>'
 
 
@@ -32,7 +28,6 @@ def _secret(key: str, default: str = "") -> str:
 
 
 def conectar_supabase():
-    """Cliente Supabase; mensagem clara se Secrets faltarem no Streamlit Cloud."""
     import streamlit as st
     from supabase import create_client
 
@@ -41,29 +36,25 @@ def conectar_supabase():
         key = st.secrets["SUPABASE_KEY"]
     except Exception:
         st.error(
-            "Secrets do Supabase não encontrados. No Streamlit Cloud: "
-            "Settings → Secrets → configure SUPABASE_URL e SUPABASE_KEY, depois Reboot app."
+            "Secrets do Supabase nao encontrados. No Streamlit Cloud: "
+            "Settings → Secrets → SUPABASE_URL e SUPABASE_KEY, depois Reboot app."
         )
         st.stop()
     return create_client(url, key)
 
 
-def exigir_acesso(titulo: str, subtitulo: str = "Acesso restrito — SIGCF Santa Vergínia"):
+def exigir_acesso(titulo: str, subtitulo: str = "Acesso restrito — SIGCF Santa Virginia"):
     import streamlit as st
 
     pin_cfg = _secret("APP_PIN", "").strip()
-    if not pin_cfg:
-        return
-    if st.session_state.get(SESSION_KEY):
+    if not pin_cfg or st.session_state.get(SESSION_KEY):
         return
 
     st.markdown(
         f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&display=swap');
         [data-testid="stAppViewContainer"]{{background:#0a1409;}}
         h1,h2,p,label{{color:#e8edd0;}}
-        h1{{font-family:'Barlow Condensed',sans-serif;}}
         {LOGO_FRAME_CSS}
         </style>
         """,
