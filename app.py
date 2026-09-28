@@ -1,7 +1,6 @@
-# redeploy: streamlit 1.44.1 sem starlette (fix ImportError GZip)
+# boot em 2 passes — 1o run termina rapido (Cloud sai do "in the oven")
 import re
 import streamlit as st
-import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from sigcf_auth import conectar_supabase, exigir_acesso, logo_html
@@ -42,7 +41,6 @@ st.set_page_config(page_title="Oficina SV - SIGCF", layout="wide", page_icon="�
 
 exigir_acesso("Gestão de Oficina — SV")
 
-# ── Identidade visual SV (mesmo padrão do Apontamento de Campo) ──
 st.markdown("""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;600;700&display=swap');
@@ -97,7 +95,6 @@ div[data-testid="stMetricValue"]{color:#6fcf60!important;font-family:'Barlow Con
 </style>
 """, unsafe_allow_html=True)
 
-# ── Logo + Título ──
 col_logo, col_titulo = st.columns([1.1, 5.9])
 with col_logo:
     st.markdown(logo_html(118), unsafe_allow_html=True)
@@ -107,54 +104,64 @@ with col_titulo:
 
 st.divider()
 
-# ── Conexão Supabase ──
-supabase = conectar_supabase()
+# 1o run: termina aqui (Cloud registra app vivo). 2o run: carrega Supabase.
+if not st.session_state.get("_boot"):
+    st.session_state._boot = True
+    st.caption("Conectando ao Supabase…")
+    st.rerun()
 
-# ── Carregar dados ──
+
+@st.cache_resource
+def get_supabase():
+    return conectar_supabase()
+
+
 @st.cache_data(ttl=60)
-def carregar_frota():
-    res = supabase.table("dim_frota").select("id_frota, modelo").eq("ativo", True).order("modelo").execute()
+def carregar_frota(_sb):
+    res = _sb.table("dim_frota").select("id_frota, modelo").eq("ativo", True).order("modelo").execute()
     return res.data or []
 
+
 @st.cache_data(ttl=10)
-def carregar_os():
+def carregar_os(_sb):
     try:
-        res = supabase.table("ordem_servico").select(
+        res = _sb.table("ordem_servico").select(
             "numero_os, id_frota, mecanico, operador, sistema, status, created_at"
         ).order("created_at", desc=True).limit(50).execute()
         return res.data or []
     except Exception:
-        # fallback enquanto a coluna "operador" não existir no banco
-        res = supabase.table("ordem_servico").select(
+        res = _sb.table("ordem_servico").select(
             "numero_os, id_frota, mecanico, status, created_at"
         ).order("created_at", desc=True).limit(50).execute()
         return res.data or []
 
+
 @st.cache_data(ttl=300)
-def carregar_mecanicos():
-    res = supabase.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
+def carregar_mecanicos(_sb):
+    res = _sb.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
     return res.data or []
 
-try:
-    frota_data = carregar_frota()
-    os_data = carregar_os()
-    mecanicos_data = carregar_mecanicos()
-except Exception as e:
-    st.error(f"Erro ao carregar dados do Supabase: {e}")
-    st.info("Verifique SUPABASE_URL e SUPABASE_KEY em Settings → Secrets no Streamlit Cloud.")
-    st.stop()
+
+with st.spinner("Conectando ao Supabase..."):
+    try:
+        supabase = get_supabase()
+        frota_data = carregar_frota(supabase)
+        os_data = carregar_os(supabase)
+        mecanicos_data = carregar_mecanicos(supabase)
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do Supabase: {e}")
+        st.info("Verifique SUPABASE_URL e SUPABASE_KEY em Settings → Secrets no Streamlit Cloud.")
+        st.stop()
 
 lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cadastre a frota"]
-lista_mecanicos = [m['nome'] for m in mecanicos_data] or ["Cadastre o mecânico"]
+lista_mecanicos = [m["nome"] for m in mecanicos_data] or ["Cadastre o mecânico"]
 
-# Próximo número OS
 proximo_numero = 1
 if os_data:
-    numeros = [int(o['numero_os'].replace('OS-', '')) for o in os_data if o.get('numero_os', '').startswith('OS-')]
+    numeros = [int(o["numero_os"].replace("OS-", "")) for o in os_data if o.get("numero_os", "").startswith("OS-")]
     if numeros:
         proximo_numero = max(numeros) + 1
 
-# ── Formulário ──
 with st.form("form_oficina", clear_on_submit=True):
     col_os, _ = st.columns([1, 3])
     with col_os:
@@ -167,7 +174,7 @@ with st.form("form_oficina", clear_on_submit=True):
         mecanico = st.selectbox("Mecânico", options=lista_mecanicos)
         sistema = st.selectbox("Sistema Afetado", [
             "Motor", "Hidráulico", "Elétrico", "Pneus",
-            "Transmissão", "Suspensão", "Implemento", "Outros"
+            "Transmissão", "Suspensão", "Implemento", "Outros",
         ])
         operador_sel = st.text_input(
             "Operador (apontado no equipamento)",
@@ -178,7 +185,7 @@ with st.form("form_oficina", clear_on_submit=True):
     with c2:
         horimetro = st.number_input("Horímetro ou KM Atual", min_value=0.0, step=0.1, format="%.1f")
         tipo_manut = st.selectbox("Tipo de Manutenção", [
-            "CORRETIVA", "PREVENTIVA", "INTERNA", "PREDITIVA"
+            "CORRETIVA", "PREVENTIVA", "INTERNA", "PREDITIVA",
         ])
         hora_entrada_txt = st.text_input(
             "Hora Entrada",
@@ -207,7 +214,6 @@ with st.form("form_oficina", clear_on_submit=True):
         elif not descricao.strip():
             st.warning("⚠️ Descrição é obrigatória.")
         else:
-            # Calcular tempo trabalhado
             tempo_min = None
             if hora_entrada and hora_saida:
                 dt_entrada = datetime.combine(datetime.today(), hora_entrada)
@@ -216,7 +222,6 @@ with st.form("form_oficina", clear_on_submit=True):
                     tempo_min = int((dt_saida - dt_entrada).total_seconds() / 60)
 
             id_frota = frota_sel.split(" - ")[0].strip()
-
             operador_final = str(operador_sel or "").strip().upper() or None
 
             novo = {
@@ -248,7 +253,6 @@ with st.form("form_oficina", clear_on_submit=True):
 
 st.divider()
 
-# ── Últimas OS (tabela completa abaixo do formulário) ──
 st.markdown('<div class="sec">🕒 Últimas OS lançadas</div>', unsafe_allow_html=True)
 if os_data:
     linhas = ""

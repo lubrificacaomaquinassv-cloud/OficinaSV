@@ -1,4 +1,3 @@
-# streamlit 1.44.1 NAO usa starlette — nao pinar starlette (quebra import)
 streamlit==1.44.1
 numpy==1.26.4
 pandas>=2.0.0,<2.2.0
