@@ -1,4 +1,4 @@
-# redeploy: python 3.11 + streamlit 1.39 + sem pandas
+# redeploy: requirements minimo (sem python-dateutil explicito)
 import re
 import streamlit as st
 from datetime import datetime

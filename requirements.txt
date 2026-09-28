@@ -1,7 +1,4 @@
-# pyarrow<21 OBRIGATORIO — versao 25 crasha o boot no Streamlit Cloud
+# pyarrow<21 evita crash no boot (Cloud instalava 25.x)
 pyarrow>=14.0.0,<21.0.0
-numpy>=1.26.0,<2.0.0
-pandas>=2.0.0,<2.2.0
 streamlit==1.39.0
 supabase>=2.0.0,<3.0.0
-python-dateutil>=2.8.0
