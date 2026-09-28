@@ -1,5 +1,3 @@
-# Versoes fixas — estavel no Streamlit Cloud (Python 3.12 em Advanced settings)
+# Minimo — sem pandas/pyarrow (evita crash no Cloud Python 3.13+)
 streamlit==1.39.0
-pandas>=2.0.0,<2.3.0
-pyarrow>=14.0.0,<21.0.0
 supabase>=2.0.0,<3.0.0

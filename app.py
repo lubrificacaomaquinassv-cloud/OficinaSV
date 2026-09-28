@@ -1,7 +1,6 @@
-# redeploy fix: streamlit 1.39 + remove .python-version
+# redeploy: python 3.11 + streamlit 1.39 + sem pandas
 import re
 import streamlit as st
-import pandas as pd
 from datetime import datetime
 from zoneinfo import ZoneInfo
 from sigcf_auth import conectar_supabase, exigir_acesso, logo_html
@@ -107,42 +106,52 @@ with col_titulo:
 
 st.divider()
 
-# ── Conexão Supabase ──
-supabase = conectar_supabase()
 
-# ── Carregar dados ──
+@st.cache_resource
+def get_supabase():
+    return conectar_supabase()
+
+
 @st.cache_data(ttl=60)
 def carregar_frota():
-    res = supabase.table("dim_frota").select("id_frota, modelo").eq("ativo", True).order("modelo").execute()
+    sb = get_supabase()
+    res = sb.table("dim_frota").select("id_frota, modelo").eq("ativo", True).order("modelo").execute()
     return res.data or []
+
 
 @st.cache_data(ttl=10)
 def carregar_os():
+    sb = get_supabase()
     try:
-        res = supabase.table("ordem_servico").select(
+        res = sb.table("ordem_servico").select(
             "numero_os, id_frota, mecanico, operador, sistema, status, created_at"
         ).order("created_at", desc=True).limit(50).execute()
         return res.data or []
     except Exception:
-        # fallback enquanto a coluna "operador" não existir no banco
-        res = supabase.table("ordem_servico").select(
+        res = sb.table("ordem_servico").select(
             "numero_os, id_frota, mecanico, status, created_at"
         ).order("created_at", desc=True).limit(50).execute()
         return res.data or []
 
+
 @st.cache_data(ttl=300)
 def carregar_mecanicos():
-    res = supabase.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
+    sb = get_supabase()
+    res = sb.table("dim_colaborador").select("id_colaborador, nome").eq("ativo", True).order("nome").execute()
     return res.data or []
 
-try:
-    frota_data = carregar_frota()
-    os_data = carregar_os()
-    mecanicos_data = carregar_mecanicos()
-except Exception as e:
-    st.error(f"Erro ao carregar dados do Supabase: {e}")
-    st.info("Verifique SUPABASE_URL e SUPABASE_KEY em Settings → Secrets no Streamlit Cloud.")
-    st.stop()
+
+with st.spinner("Conectando ao Supabase..."):
+    try:
+        frota_data = carregar_frota()
+        os_data = carregar_os()
+        mecanicos_data = carregar_mecanicos()
+    except Exception as e:
+        st.error(f"Erro ao carregar dados do Supabase: {e}")
+        st.info("Verifique SUPABASE_URL e SUPABASE_KEY em Settings → Secrets no Streamlit Cloud.")
+        st.stop()
+
+supabase = get_supabase()
 
 lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cadastre a frota"]
 lista_mecanicos = [m['nome'] for m in mecanicos_data] or ["Cadastre o mecânico"]
