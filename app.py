@@ -1,4 +1,4 @@
-# redeploy fix streamlit 1.44
+# redeploy: streamlit 1.44.1 sem starlette (fix ImportError GZip)
 import re
 import streamlit as st
 import pandas as pd

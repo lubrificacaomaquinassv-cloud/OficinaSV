@@ -1,6 +1,5 @@
-# Python 3.12 no painel Streamlit Cloud (Settings → General). Sem .python-version no repo.
-streamlit==1.59.1
-starlette==0.41.3
+# streamlit 1.44.1 NAO usa starlette — nao pinar starlette (quebra import)
+streamlit==1.44.1
 numpy==1.26.4
 pandas>=2.0.0,<2.2.0
 pyarrow==20.0.0
