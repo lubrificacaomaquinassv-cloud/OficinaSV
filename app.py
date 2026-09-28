@@ -1,4 +1,4 @@
-# Oficina SV — relançamento limpo (mesmo Supabase, numeração OS preservada no banco)
+# Oficina SV — tema SIGCF v5 (padrão Apontamento de Campo / Posto SV)
 import re
 from datetime import datetime
 from zoneinfo import ZoneInfo
@@ -13,34 +13,24 @@ st.set_page_config(
 )
 
 from sigcf_auth import conectar_supabase, exigir_acesso, logo_html
+from sigcf_theme import inject_theme, render_footer, render_header
 
 TZ_BR = ZoneInfo("America/Sao_Paulo")
 
-CSS = """
-[data-testid="stAppViewContainer"]{background:#0a1409;}
-[data-testid="stSidebar"]{background:#111c10;border-right:1px solid #1e2e1c;}
-[data-testid="stHeader"]{background:#0a1409;}
-h1,h2,h3,h4,p,span,label{color:#e8edd0;}
-.stCaption,[data-testid="stCaptionContainer"] p{color:#8aab80!important;}
-.logo-frame{background:linear-gradient(145deg,#0a1628,#0d2040);border:2px solid #c9a227;
- border-radius:12px;padding:5px;display:inline-block;}
-.logo-frame img{display:block;border-radius:8px;}
-div[data-testid="stForm"]{background:#0d180c;border:1px solid #1e2e1c;border-radius:12px;padding:24px;}
-div[data-testid="stSelectbox"] label,div[data-testid="stNumberInput"] label,
-div[data-testid="stTextArea"] label,div[data-testid="stTextInput"] label,
-div[data-testid="stRadio"] label{color:#8aab80!important;font-size:12px!important;}
-.stTextInput input,.stNumberInput input,.stTextArea textarea{
- background:#dce6d2!important;color:#1a2818!important;border:1px solid #4a6644!important;border-radius:8px!important;}
-div[data-baseweb="select"] > div{background:#dce6d2!important;border:1px solid #4a6644!important;color:#1a2818!important;}
-.stButton button,[data-testid="stFormSubmitButton"] button{
- background:#4a9e3f!important;color:#fff!important;border:1px solid #6fcf60!important;font-weight:700;}
-.sec{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#8aab80;
- border-left:4px solid #4a9e3f;padding-left:10px;margin:4px 0 10px;}
-.os-table{width:100%;border-collapse:collapse;font-size:12px;}
-.os-table th{color:#8aab80;text-transform:uppercase;font-size:10px;padding:6px 8px;border-bottom:1px solid #1e2e1c;}
-.os-table td{color:#e8edd0;padding:6px 8px;border-bottom:1px solid #16241480;}
-.st-fin{color:#6fcf60;font-weight:700;}
-.st-pend{color:#d4a017;font-weight:700;}
+OFICINA_EXTRA_CSS = """
+div[data-testid="stRadio"] label{color:var(--sigcf-label)!important;}
+div[data-testid="stRadio"] div[role="radiogroup"] p{
+ color:var(--sigcf-text)!important;font-size:13px!important;text-transform:none!important;}
+.sigcf-os-hint{
+ color:var(--sigcf-label)!important;font-size:11px!important;letter-spacing:0.12em;
+ text-transform:uppercase;margin:0 0 16px;font-weight:600;}
+.os-table{width:100%;border-collapse:collapse;font-size:12px;font-family:var(--sigcf-font);}
+.os-table th{
+ color:#ffd966;text-transform:uppercase;font-size:10px;letter-spacing:1px;
+ padding:7px 10px;background:#1a2818;border-bottom:2px solid var(--sigcf-border);}
+.os-table td{color:var(--sigcf-text);padding:6px 10px;border-bottom:1px solid var(--sigcf-border);}
+.st-fin{color:var(--sigcf-green);font-weight:700;}
+.st-pend{color:var(--sigcf-gold);font-weight:700;}
 """
 
 
@@ -113,7 +103,6 @@ def carregar_os_recentes(_sb):
 
 @st.cache_data(ttl=10)
 def proximo_numero_os(_sb):
-    """Numeração vem do Supabase — recriar o app não apaga OS já lançadas."""
     numeros = []
     try:
         res = (
@@ -140,16 +129,12 @@ def proximo_numero_os(_sb):
 
 
 exigir_acesso("Gestão de Oficina — SV")
-st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
-
-col_logo, col_titulo = st.columns([1.1, 5.9])
-with col_logo:
-    st.markdown(logo_html(118), unsafe_allow_html=True)
-with col_titulo:
-    st.title("Gestão de Oficina — SV")
-    st.caption("SIGCF | Controladoria Bataguassu-MS")
-
-st.divider()
+inject_theme(OFICINA_EXTRA_CSS)
+render_header(
+    logo_html,
+    "Gestão de Oficina — SV",
+    "SIGCF — Sistema Integrado de Gestão de Custos de Frota",
+)
 
 try:
     supabase = get_supabase()
@@ -165,13 +150,18 @@ except Exception as e:
 lista_frotas = [f"{f['id_frota']} - {f['modelo']}" for f in frota_data] or ["Cadastre a frota"]
 lista_mecanicos = [m["nome"] for m in mecanicos_data] or ["Cadastre o mecânico"]
 
-st.caption(f"Próxima OS: **OS-{proximo_numero:04d}** (sequência lida do Supabase)")
+st.markdown('<div class="sec">Registrar ordem de serviço</div>', unsafe_allow_html=True)
+st.markdown(
+    f'<p class="sigcf-os-hint">Próxima O.S.: OS-{proximo_numero:04d} · sequência lida do Supabase</p>',
+    unsafe_allow_html=True,
+)
 
 with st.form("form_oficina", clear_on_submit=True):
     col_os, _ = st.columns([1, 3])
     with col_os:
         st.metric("O.S. ATUAL", f"OS-{proximo_numero:04d}")
 
+    st.markdown("**Identificação da O.S.**")
     c1, c2 = st.columns(2)
 
     with c1:
@@ -193,6 +183,7 @@ with st.form("form_oficina", clear_on_submit=True):
         hora_saida_txt = st.text_input("Hora Saída", placeholder="Ex: 14:30")
         status_os = st.radio("Status", ["FINALIZADO", "PENDENTE"], horizontal=True)
 
+    st.markdown("**Serviço e observações**")
     descricao = st.text_area("Descrição do serviço e peças aplicadas", max_chars=300)
     observacao = st.text_area("Observação", max_chars=200)
     enviar = st.form_submit_button("SALVAR NO SISTEMA")
@@ -241,8 +232,9 @@ with st.form("form_oficina", clear_on_submit=True):
             except Exception as e:
                 st.error(f"Erro ao salvar: {e}")
 
-st.divider()
-st.markdown('<div class="sec">Ultimas OS lancadas</div>', unsafe_allow_html=True)
+st.markdown('<span class="sigcf-op-sep"></span>', unsafe_allow_html=True)
+st.markdown('<div class="sec">Últimas O.S. lançadas</div>', unsafe_allow_html=True)
+
 if os_data:
     linhas = ""
     for o in os_data:
@@ -258,13 +250,15 @@ if os_data:
             f"<td>{fmt_dt_br(o.get('created_at'))}</td></tr>"
         )
     st.markdown(
+        '<div class="sigcf-table-wrap" style="overflow-x:auto;">'
         "<table class='os-table'>"
-        "<tr><th>OS</th><th>Frota</th><th>Sistema</th><th>Mecanico</th>"
+        "<tr><th>OS</th><th>Frota</th><th>Sistema</th><th>Mecânico</th>"
         "<th>Operador</th><th>Status</th><th>Data/Hora</th></tr>"
-        f"{linhas}</table>",
+        f"{linhas}</table></div>",
         unsafe_allow_html=True,
     )
+    st.caption("Exibindo as 10 O.S. mais recentes · horário de Brasília")
 else:
-    st.info("Nenhuma OS registrada.")
+    st.info("Nenhuma O.S. registrada.")
 
-st.caption("SIGCF | Oficina SV | Controladoria Bataguassu-MS")
+render_footer("SIGCF · Oficina SV · Controladoria Bataguassu-MS")
