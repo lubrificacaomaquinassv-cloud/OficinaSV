@@ -1,4 +1,6 @@
-# pyarrow<21 evita crash no boot (Cloud instalava 25.x)
-pyarrow>=14.0.0,<21.0.0
-streamlit==1.39.0
+# Versoes fixas — evita numpy 2.x (crash silencioso no boot) e pyarrow 25
+pyarrow==20.0.0
+numpy==1.26.4
+pandas==2.1.4
+streamlit==1.44.1
 supabase>=2.0.0,<3.0.0

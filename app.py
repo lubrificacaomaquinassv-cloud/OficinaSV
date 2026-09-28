@@ -1,4 +1,4 @@
-# redeploy: requirements minimo (sem python-dateutil explicito)
+# redeploy: numpy 1.26 + streamlit 1.44.1 (boot Cloud)
 import re
 import streamlit as st
 from datetime import datetime
