@@ -1,3 +1,5 @@
-streamlit==1.44.1
-pandas>=2.0.0,<3.0.0
+# Versoes fixas — estavel no Streamlit Cloud (Python 3.12 em Advanced settings)
+streamlit==1.39.0
+pandas>=2.0.0,<2.3.0
+pyarrow>=14.0.0,<21.0.0
 supabase>=2.0.0,<3.0.0

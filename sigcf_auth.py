@@ -36,10 +36,14 @@ def conectar_supabase():
     import streamlit as st
     from supabase import create_client
 
+    url = ""
+    key = ""
     try:
-        url = st.secrets["SUPABASE_URL"]
-        key = st.secrets["SUPABASE_KEY"]
+        url = str(st.secrets["SUPABASE_URL"]).strip()
+        key = str(st.secrets["SUPABASE_KEY"]).strip()
     except Exception:
+        pass
+    if not url or not key:
         st.error(
             "Secrets do Supabase não encontrados. No Streamlit Cloud: "
             "Settings → Secrets → configure SUPABASE_URL e SUPABASE_KEY, depois Reboot app."

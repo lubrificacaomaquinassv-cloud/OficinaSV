@@ -1,4 +1,4 @@
-# redeploy fix streamlit 1.44
+# redeploy fix: streamlit 1.39 + remove .python-version
 import re
 import streamlit as st
 import pandas as pd
