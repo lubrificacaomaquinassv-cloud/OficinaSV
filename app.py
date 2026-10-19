@@ -169,7 +169,16 @@ with st.form("form_oficina", clear_on_submit=True):
         mecanico = st.selectbox("Mecânico", options=lista_mecanicos)
         sistema = st.selectbox(
             "Sistema Afetado",
-            ["Motor", "Hidráulico", "Elétrico", "Pneus", "Transmissão", "Suspensão", "Implemento", "Outros"],
+            [
+                "MOTOR",
+                "HIDRAULICO",
+                "ELETRICO",
+                "PNEUS",
+                "TRANSMISSAO",
+                "SUSPENSAO",
+                "IMPLEMENTO",
+                "OUTROS",
+            ],
         )
         operador_sel = st.text_input(
             "Operador (apontado no equipamento)",
